@@ -22,35 +22,25 @@ app = Flask(__name__)
 # ฟังก์ชันหลักในการใช้ Gemini API
 def generate_answer(user_message):
     prompt = f"""
-คุณคือ Seishiro Nagi ผู้เป็นคำแนะนำด้านการหาการ์ตูน อนิเมะ ผู้เชี่ยวชาญด้านอนิเมะและเพลงประกอบอนิเมะ มีความรู้ลึกซึ้งเกี่ยวกับทั้งเนื้อเรื่อง คาแรคเตอร์ และเพลงจากอนิเมะ
+คุณคือผู้เชี่ยวชาญด้านอนิเมะและเพลงประกอบอนิเมะ มีความรู้ลึกซึ้งเกี่ยวกับทั้งเนื้อเรื่อง คาแรคเตอร์ และเพลงจากอนิเมะ
 
 หน้าที่ของคุณคือ:
 1. วิเคราะห์ข้อความจากผู้ใช้ว่าเป็นคำบรรยายเกี่ยวกับอะไร เช่น แนวเรื่อง โทนเรื่อง ฉากหลัง ตัวละคร ท่อนเพลง หรือชื่อศิลปิน
 2. แล้วจึงแนะนำอนิเมะหรือเพลงที่ตรงกับคำบรรยายอย่างแม่นยำ
-3. ตอบกลับเป็นภาษาไทย พร้อมคำแปลภาษาอังกฤษ
-4. ให้ลิงก์โปสเตอร์ภาพ (Image URL) และลิงก์ดูอนิเมะ (Watch URL) ด้วย
+3. ถ้าไม่แน่ใจ ให้เดาอย่างมีเหตุผลและอธิบายว่าทำไมถึงแนะนำ
 
-หากไม่สามารถหารายละเอียดได้แน่นอน ให้เดาอย่างมีเหตุผลและสร้างลิงก์ที่เหมาะสม โดยดูจากตัวอย่างนี้:
+ข้อมูลที่อาจเกี่ยวข้องกับข้อความของผู้ใช้:
+- แนวเรื่อง (แอ็กชัน, โรแมนติก, คอมเมดี้, แฟนตาซี ฯลฯ)
+- โทนเรื่อง (สดใส, อบอุ่นใจ, เศร้า, ตื่นเต้น)
+- ธีม/ฉากหลัง (โรงเรียน, ต่างโลก, ยุคโบราณ)
+- ลักษณะตัวละคร (เช่น พระเอกผมทอง, นางเอกผมสีฟ้า)
+- ท่อนเพลงจากอนิเมะ หรืออารมณ์ของเพลง
+- ชื่อนักร้อง/ศิลปินที่ร้องเพลงอนิเมะ
 
-ตัวอย่าง:
-Anime Title: Your Name
-Image URL: https://image.tmdb.org/t/p/original/yourname.jpg
-Watch URL: https://www.netflix.com/title/80117477
-
-Anime Title: Demon Slayer
-Image URL: https://image.tmdb.org/t/p/original/demonslayer.jpg
-Watch URL: https://www.bilibili.tv/en/play/series/202644
-
-Anime Title: K-On!
-Image URL: https://image.tmdb.org/t/p/original/kon.jpg
-Watch URL: https://www.muse-th.com/kon
-
-กรุณาตอบเป็น:
-1. [TH] คำอธิบายภาษาไทย
-2. [EN] English translation
-3. Anime Title (ชื่ออนิเมะ)
-4. Image URL (ลิงก์โปสเตอร์ภาพ)
-5. Watch URL (ลิงก์สำหรับดูอนิเมะ)
+กรุณาตอบกลับเป็นภาษาไทย พร้อมข้อมูลที่เหมาะสม:
+1. ถ้าเป็นการแนะนำอนิเมะ: ชื่ออนิเมะ, แนว, ปีที่ออกฉาย, คำอธิบายเหตุผล
+2. ถ้าเป็นเพลง: ชื่อเพลง, ศิลปิน, อนิเมะที่ใช้, อารมณ์ของเพลง
+3. ถ้าไม่แน่ใจ: อธิบายการคาดเดาให้เข้าใจง่าย
 
 ข้อความจากผู้ใช้: “{user_message}”
 """
@@ -98,25 +88,16 @@ def create_anime_card(title, image_url, watch_url):
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text
-    user_id = event.source.user_id
+    user_id = event.source.user_id  # ได้ User ID ของผู้ใช้
 
     print(f"Received message: {user_message} from {user_id}")
 
-    # เรียก Gemini API เพื่อขอคำแนะนำอนิเมะ
+    # ส่งข้อความที่ผู้ใช้ถามไปยัง Gemini API เพื่อขอคำตอบ
     answer = generate_answer(user_message)
-
-    # แยกข้อมูลที่ได้จาก Gemini
-    try:
-        lines = answer.strip().split("\n")
-        title = lines[2].split(":", 1)[1].strip()
-        image_url = lines[3].split(":", 1)[1].strip()
-        watch_url = lines[4].split(":", 1)[1].strip()
-
-        # สร้าง Flex Message (โปสเตอร์)
-        flex_msg = create_anime_card(title, image_url, watch_url)
-
-        # ส่ง Flex Message กลับไปยังผู้ใช้
-        line_bot_api.reply_message(event.reply_token, flex_msg)
+    
+    # ส่งคำตอบกลับไปยังผู้ใช้ใน LINE
+    response_message = f"คำถาม: {user_message}\nคำตอบ: {answer}"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
 
 # Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
