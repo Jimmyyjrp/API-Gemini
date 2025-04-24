@@ -75,21 +75,26 @@ def handle_message(event):
 
     # ส่งข้อความไปหา Gemini API
     answer = generate_answer(user_message)
-
-    # ลบเครื่องหมาย Markdown และใส่อีโมจิแทนหัวข้อ
-    clean_answer = re.sub(r"\*+", "", answer)  # ลบ * ทั้งหมด
-    clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)  # แปลงลิงก์จาก Markdown เป็นแยกบรรทัด
-
-    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ
-    clean_answer = clean_answer.replace("ชื่อเรื่อง:", "🎬 ชื่อเรื่อง:")
-    clean_answer = clean_answer.replace("แนว:", "🧭 แนว:")
-    clean_answer = clean_answer.replace("ปี:", "📅 ปี:")
-    clean_answer = clean_answer.replace("เหตุผล:", "❤️ เหตุผล:")
-    clean_answer = clean_answer.replace("ลิงก์:", "🔗 ลิงก์:")
-
+    
+    # ลบ Markdown ที่ไม่จำเป็น
+    clean_answer = re.sub(r"\*+", "", answer)
+    clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)
+    
+    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ (ทั้งอนิเมะและเพลง)
+    clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เรื่อง[ ]*:[^\S\r\n]*", "🎬 ชื่อเรื่อง: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*แนว[ ]*:[^\S\r\n]*", "🧭 แนว: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ปี[ ]*:[^\S\r\n]*", "📅 ปี: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*เหตุผล[ ]*:[^\S\r\n]*", "❤️ เหตุผล: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ลิงก์[ ]*:[^\S\r\n]*", "🔗 ลิงก์: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เพลง[ ]*:[^\S\r\n]*", "🎶 ชื่อเพลง: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ศิลปิน[ ]*:[^\S\r\n]*", "🎤 ศิลปิน: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*จากเรื่อง[ ]*:[^\S\r\n]*", "🎬 จากเรื่อง: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*อารมณ์[ ]?เพลง[ ]*:[^\S\r\n]*", "🎧 อารมณ์เพลง: ", clean_answer, flags=re.IGNORECASE)
+    
     # ส่งกลับไปยัง LINE
     response_message = f"{clean_answer}"
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
+
 
 # Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
