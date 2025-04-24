@@ -3,6 +3,7 @@ from linebot import LineBotApi, WebhookHandler
 from linebot.models import TextSendMessage, MessageEvent, TextMessage
 from flask import Flask, request, abort
 from linebot.models import FlexSendMessage, BubbleContainer, ImageComponent, BoxComponent, TextComponent, URIAction
+import re
 
 
 # LINE API Access Token และ Channel Secret
@@ -52,30 +53,42 @@ def generate_answer(user_message):
 
 
 # ฟังก์ชันจัดการข้อความที่ได้รับจากผู้ใช้
+import re
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text
-    user_id = event.source.user_id  # ได้ User ID ของผู้ใช้
+    user_id = event.source.user_id
 
     print(f"Received message: {user_message} from {user_id}")
 
-    # คำที่อาจเกี่ยวข้องกับแนวแซวจีบ
+    # คำแนวจีบ
     flirting_keywords = [
         "มีแฟนยัง", "คุณมีแฟนยัง", "จีบได้ไหม", "จีบได้มั้ย", "โสดไหม", "แฟนยัง", 
         "ตกหลุมรัก", "คุณน่ารัก", "ชอบคุณ", "ชอบบอท", "บอทน่ารัก", "จีบบอท"
     ]
 
-    # ถ้ามีคำแนวจีบอยู่ในข้อความ
     if any(keyword in user_message.lower() for keyword in flirting_keywords):
         cute_reply = "เอ๋~ ถามแบบนี้เขินนะคะ 🤭💘\nบอทยังไม่มีแฟน แต่มีเรื่องอนิเมะดี ๆ มาเล่าให้ทุกวันเลยน้า~ 🍿✨"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=cute_reply))
         return
 
-    # ถ้าไม่ใช่แนวจีบ → ใช้ Gemini API ตามปกติ
+    # ส่งข้อความไปหา Gemini API
     answer = generate_answer(user_message)
 
-    # ส่งคำตอบกลับไปยังผู้ใช้ใน LINE
-    response_message = f"{answer}"
+    # ลบเครื่องหมาย Markdown และใส่อีโมจิแทนหัวข้อ
+    clean_answer = re.sub(r"\*+", "", answer)  # ลบ * ทั้งหมด
+    clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)  # แปลงลิงก์จาก Markdown เป็นแยกบรรทัด
+
+    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ
+    clean_answer = clean_answer.replace("ชื่อเรื่อง:", "🎬 ชื่อเรื่อง:")
+    clean_answer = clean_answer.replace("แนว:", "🧭 แนว:")
+    clean_answer = clean_answer.replace("ปี:", "📅 ปี:")
+    clean_answer = clean_answer.replace("เหตุผล:", "❤️ เหตุผล:")
+    clean_answer = clean_answer.replace("ลิงก์:", "🔗 ลิงก์:")
+
+    # ส่งกลับไปยัง LINE
+    response_message = f"{clean_answer}"
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
 
 # Webhook URL สำหรับรับข้อความจาก LINE
