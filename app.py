@@ -62,21 +62,69 @@ Watch URL: https://www.muse-th.com/kon
     return response.text
 
 
+def create_anime_card(title, image_url, watch_url):
+    bubble = BubbleContainer(
+        hero=ImageComponent(
+            url=image_url,
+            size="full",
+            aspectRatio="20:13",
+            aspectMode="cover",
+            action=URIAction(uri=watch_url, label="ดูเลย")
+        ),
+        body=BoxComponent(
+            layout="vertical",
+            contents=[
+                TextComponent(text=title, weight="bold", size="lg", wrap=True),
+                TextComponent(text="กดที่รูปเพื่อดูอนิเมะได้เลย", size="sm", color="#aaaaaa", wrap=True),
+            ]
+        ),
+        footer=BoxComponent(
+            layout="vertical",
+            spacing="sm",
+            contents=[
+                ButtonComponent(
+                    style="link",
+                    height="sm",
+                    action=URIAction(label="ดูบนเว็บ", uri=watch_url)
+                )
+            ],
+            flex=0
+        )
+    )
+    return FlexSendMessage(alt_text="แนะนำอนิเมะ", contents=bubble)
+
 
 # ฟังก์ชันจัดการข้อความที่ได้รับจากผู้ใช้
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text
-    user_id = event.source.user_id  # ได้ User ID ของผู้ใช้
+    user_id = event.source.user_id
 
     print(f"Received message: {user_message} from {user_id}")
 
-    # ส่งข้อความที่ผู้ใช้ถามไปยัง Gemini API เพื่อขอคำตอบ
+    # เรียก Gemini API เพื่อขอคำแนะนำอนิเมะ
     answer = generate_answer(user_message)
+
+    # แยกข้อมูลที่ได้จาก Gemini
+    try:
+        lines = answer.strip().split("\n")
+        title = lines[2].split(":", 1)[1].strip()
+        image_url = lines[3].split(":", 1)[1].strip()
+        watch_url = lines[4].split(":", 1)[1].strip()
+
+        # สร้าง Flex Message (โปสเตอร์)
+        flex_msg = create_anime_card(title, image_url, watch_url)
+
+        # ส่ง Flex Message กลับไปยังผู้ใช้
+        line_bot_api.reply_message(event.reply_token, flex_msg)
+
+    except Exception as e:
+        print("Error parsing Gemini response:", e)  # <-- บรรทัดนี้
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(
+            text="ระบบไม่สามารถหาข้อมูลอนิเมะที่ตรงกับคำบรรยายได้\nลองพิมพ์ใหม่ให้ละเอียดอีกนิดนะคะ ❤️"
+        ))  # <-- และบรรทัดนี้
+
     
-    # ส่งคำตอบกลับไปยังผู้ใช้ใน LINE
-    response_message = f"คำถาม: {user_message}\nคำตอบ: {answer}"
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
 
 # Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
