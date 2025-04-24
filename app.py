@@ -69,7 +69,7 @@ def handle_message(event):
     answer = generate_answer(user_message)
     
     # ส่งคำตอบกลับไปยังผู้ใช้ใน LINE
-    response_message = f"คำถาม : {user_message}\n {answer}"
+    response_message = f"คำถาม : {user_message}\n\nคำตอบ :  {answer}"
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
 
 # Webhook URL สำหรับรับข้อความจาก LINE
