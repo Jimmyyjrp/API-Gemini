@@ -118,13 +118,6 @@ def handle_message(event):
         # ส่ง Flex Message กลับไปยังผู้ใช้
         line_bot_api.reply_message(event.reply_token, flex_msg)
 
-    except Exception as e:
-        print("Error parsing Gemini response:", e)
-        # ถ้ามีปัญหา ส่งข้อความธรรมดากลับไปแทน
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="ขอโทษค่ะ ระบบตอบกลับผิดพลาด ลองใหม่นะคะ"))
-
-    
-
 # Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
 def callback():
