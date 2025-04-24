@@ -86,11 +86,8 @@ def handle_message(event):
     clean_answer = re.sub(r"\*+", "", answer)
     clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)
 
-    # 1. หลังจากได้ผลลัพธ์จาก Gemini มาในตัวแปร raw_answer
-    raw_answer = response.text  # หรืออะไรก็ตามที่ Gemini ตอบกลับมา
-    
-    # 2. แปลงหัวข้อในข้อความให้น่ารักขึ้น
-    clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เรื่อง[ ]*:[^\S\r\n]*", "🎬 ชื่อเรื่อง: ", raw_answer, flags=re.IGNORECASE)
+    # แปลงหัวข้อในข้อความให้น่ารักขึ้น
+    clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เรื่อง[ ]*:[^\S\r\n]*", "🎬 ชื่อเรื่อง: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*แนว[ ]*:[^\S\r\n]*", "🧭 แนว: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*ปี[ ]*:[^\S\r\n]*", "📅 ปี: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*เหตุผล[ ]*:[^\S\r\n]*", "❤️ เหตุผล: ", clean_answer, flags=re.IGNORECASE)
@@ -100,15 +97,15 @@ def handle_message(event):
     clean_answer = re.sub(r"[^\S\r\n]*จากเรื่อง[ ]*:[^\S\r\n]*", "🎬 จากเรื่อง: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*อารมณ์[ ]?เพลง[ ]*:[^\S\r\n]*", "🎧 อารมณ์เพลง: ", clean_answer, flags=re.IGNORECASE)
 
-# 3. ✨ เพิ่ม URL เพลงถ้ายังไม่มี
-song_url = "https://www.youtube.com/watch?v=6zQ1kYxHfFw"  # ลิงก์นี้จะมาจากระบบคุณเองหรือ Gemini ก็ได้
-if "🔗 ลิงก์เพลง:" not in clean_answer:
-    clean_answer += f"\n🔗 ลิงก์เพลง: {song_url}"
-
+    # เพิ่ม URL เพลงถ้ายังไม่มี
+    song_url = "https://www.youtube.com/watch?v=6zQ1kYxHfFw"  # ตัวอย่าง
+    if "🔗 ลิงก์เพลง:" not in clean_answer:
+        clean_answer += f"\n🔗 ลิงก์เพลง: {song_url}"
 
     # ส่งกลับไปยัง LINE
     response_message = f"{clean_answer}"
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
+
 
 
 
