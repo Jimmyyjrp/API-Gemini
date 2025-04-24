@@ -86,7 +86,7 @@ def handle_message(event):
     clean_answer = re.sub(r"\*+", "", answer)
     clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)
 
-    # แปลงหัวข้อในข้อความให้น่ารักขึ้น
+    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ (ทั้งอนิเมะและเพลง)
     clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เรื่อง[ ]*:[^\S\r\n]*", "🎬 ชื่อเรื่อง: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*แนว[ ]*:[^\S\r\n]*", "🧭 แนว: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*ปี[ ]*:[^\S\r\n]*", "📅 ปี: ", clean_answer, flags=re.IGNORECASE)
@@ -97,16 +97,9 @@ def handle_message(event):
     clean_answer = re.sub(r"[^\S\r\n]*จากเรื่อง[ ]*:[^\S\r\n]*", "🎬 จากเรื่อง: ", clean_answer, flags=re.IGNORECASE)
     clean_answer = re.sub(r"[^\S\r\n]*อารมณ์[ ]?เพลง[ ]*:[^\S\r\n]*", "🎧 อารมณ์เพลง: ", clean_answer, flags=re.IGNORECASE)
 
-    # เพิ่ม URL เพลงถ้ายังไม่มี
-    song_url = "https://www.youtube.com/watch?v=6zQ1kYxHfFw"  # ตัวอย่าง
-    if "🔗 ลิงก์เพลง:" not in clean_answer:
-        clean_answer += f"\n🔗 ลิงก์เพลง: {song_url}"
-
     # ส่งกลับไปยัง LINE
     response_message = f"{clean_answer}"
     line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
-
-
 
 
 # Webhook URL สำหรับรับข้อความจาก LINE
