@@ -5,22 +5,22 @@ from flask import Flask, request, abort
 from linebot.models import FlexSendMessage, BubbleContainer, ImageComponent, BoxComponent, TextComponent, URIAction
 import re
 
+
 # LINE API Access Token และ Channel Secret
 CHANNEL_ACCESS_TOKEN = 'rLoSpWjE4tJlrvLQXZN1ki7c9oWmvjJ+jNrtEnp7h80oh4D3GauvvdIOug9fEDeLbx7opxXfRBVmsxS57K2eh2tITggJuBJ5XxhNFLMumNK/pkaxfxZ7mh7o20pWMixtdK2IcqvHAioxIMrpRrHj7wdB04t89/1O/w1cDnyilFU='
 CHANNEL_SECRET = 'fff648004304c3a6bcde6c056eecd810'
 
-# สร้าง client สำหรับเชื่อมต่อ Gemini
-genai.configure(api_key="AIzaSyCMra2j44ztGyuTP8MzkJirs1TFtzuHpmo")
-model = genai.GenerativeModel("gemini-2.0-flash")
+# สร้าง client สำหรับเชื่อมต่อกับ Gemini API
+client = genai.Client(api_key="AIzaSyCMra2j44ztGyuTP8MzkJirs1TFtzuHpmo")
 
-# LINE Bot API
+# สร้าง LineBotApi และ WebhookHandler
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
-# Flask app
+# สร้าง Flask app
 app = Flask(__name__)
 
-# ฟังก์ชันเรียก Gemini
+# ฟังก์ชันหลักในการใช้ Gemini API
 def generate_answer(user_message):
     prompt = f"""
 คุณคือผู้เชี่ยวชาญ เพื่อนสนิทที่รักการดูอนิเมะและฟังเพลงอนิเมะมาก ๆ  
@@ -45,50 +45,68 @@ def generate_answer(user_message):
 
 ข้อความจากผู้ใช้: “{user_message}”
 """
-    response = model.generate_content(prompt)
-    return response.text.strip()
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[prompt]
+    )
+    return response.text
 
-# ฟังก์ชันจัดการข้อความ
+
+# ฟังก์ชันจัดการข้อความที่ได้รับจากผู้ใช้
+import re
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text
     user_id = event.source.user_id
+
+    print(f"Received message: {user_message} from {user_id}")
 
     # คำแนวจีบ
     flirting_keywords = [
         "มีแฟนยัง", "คุณมีแฟนยัง", "จีบได้ไหม", "จีบได้มั้ย", "โสดไหม", "แฟนยัง", 
         "ตกหลุมรัก", "คุณน่ารัก", "ชอบคุณ", "ชอบบอท", "บอทน่ารัก", "จีบบอท"
     ]
+
     if any(keyword in user_message.lower() for keyword in flirting_keywords):
-        reply = "มีแล้วน่ะ ชื่อเรโอะ จีบไม่ได้ แต่ถ้าเป็นเรื่องที่เกี่ยวกับการ์ตูนหรืออนิเมะ ถามมาได้ตลอดเลยนะ~"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=reply))
+        cute_reply = "มีแล้วน่ะ ชื่อเรโอะ จีบไม่ได้ แต่ถ้าเป็นเรื่องที่เกี่ยวกับการ์ตูนหรืออนิเมะ สามารถถามได้ตลอดเลยครับผม"
+        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=cute_reply))
         return
 
-    # เรียก Gemini
+    # ส่งข้อความไปหา Gemini API
     answer = generate_answer(user_message)
 
-    # ทำความสะอาดข้อความ
+    # ลบ Markdown ที่ไม่จำเป็น
     clean_answer = re.sub(r"\*+", "", answer)
     clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)
-    clean_answer = clean_answer.replace("ชื่อเรื่อง:", "🎬 ชื่อเรื่อง:")
-    clean_answer = clean_answer.replace("แนว:", "🧭 แนว:")
-    clean_answer = clean_answer.replace("ปี:", "📅 ปี:")
-    clean_answer = clean_answer.replace("เหตุผล:", "❤️ เหตุผล:")
-    clean_answer = clean_answer.replace("ลิงก์:", "🔗 ลิงก์:")
 
-    # ส่งข้อความกลับ
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=clean_answer))
+    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ (ทั้งอนิเมะและเพลง)
+    clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เรื่อง[ ]*:[^\S\r\n]*", "🎬 ชื่อเรื่อง: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*แนว[ ]*:[^\S\r\n]*", "🧭 แนว: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ปี[ ]*:[^\S\r\n]*", "📅 ปี: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*เหตุผล[ ]*:[^\S\r\n]*", "❤️ เหตุผล: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ลิงก์[ ]*:[^\S\r\n]*", "🔗 ลิงก์: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ชื่อ[ ]?เพลง[ ]*:[^\S\r\n]*", "🎶 ชื่อเพลง: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*ศิลปิน[ ]*:[^\S\r\n]*", "🎤 ศิลปิน: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*จากเรื่อง[ ]*:[^\S\r\n]*", "🎬 จากเรื่อง: ", clean_answer, flags=re.IGNORECASE)
+    clean_answer = re.sub(r"[^\S\r\n]*อารมณ์[ ]?เพลง[ ]*:[^\S\r\n]*", "🎧 อารมณ์เพลง: ", clean_answer, flags=re.IGNORECASE)
 
-# Webhook
+    # ส่งกลับไปยัง LINE
+    response_message = f"{clean_answer}"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
+
+# Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
+
     try:
         handler.handle(body, signature)
     except Exception as e:
-        print(f"Error: {e}")
+        print("Error:", e)
         abort(400)
+
     return 'OK'
 
 if __name__ == "__main__":
