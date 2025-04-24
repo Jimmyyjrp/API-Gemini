@@ -4,7 +4,7 @@ from linebot.models import TextSendMessage, MessageEvent, TextMessage
 from flask import Flask, request, abort
 from linebot.models import FlexSendMessage, BubbleContainer, ImageComponent, BoxComponent, TextComponent, URIAction
 import re
-
+import random
 
 # LINE API Access Token และ Channel Secret
 CHANNEL_ACCESS_TOKEN = 'rLoSpWjE4tJlrvLQXZN1ki7c9oWmvjJ+jNrtEnp7h80oh4D3GauvvdIOug9fEDeLbx7opxXfRBVmsxS57K2eh2tITggJuBJ5XxhNFLMumNK/pkaxfxZ7mh7o20pWMixtdK2IcqvHAioxIMrpRrHj7wdB04t89/1O/w1cDnyilFU='
@@ -53,7 +53,6 @@ def generate_answer(user_message):
 
 
 # ฟังก์ชันจัดการข้อความที่ได้รับจากผู้ใช้
-import re
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
@@ -62,34 +61,33 @@ def handle_message(event):
 
     print(f"Received message: {user_message} from {user_id}")
 
-    # คำแนวจีบ
-    flirting_keywords = [
-        "มีแฟนยัง", "คุณมีแฟนยัง", "จีบได้ไหม", "จีบได้มั้ย", "โสดไหม", "แฟนยัง", 
-        "ตกหลุมรัก", "คุณน่ารัก", "ชอบคุณ", "ชอบบอท", "บอทน่ารัก", "จีบบอท"
-    ]
-
-    if any(keyword in user_message.lower() for keyword in flirting_keywords):
-        cute_reply = "เอ๋~ ถามแบบนี้เขินนะคะ 🤭💘\nบอทยังไม่มีแฟน แต่มีเรื่องอนิเมะดี ๆ มาเล่าให้ทุกวันเลยน้า~ 🍿✨"
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text=cute_reply))
-        return
-
-    # ส่งข้อความไปหา Gemini API
+    # เรียกใช้ Gemini API
     answer = generate_answer(user_message)
 
-    # ลบเครื่องหมาย Markdown และใส่อีโมจิแทนหัวข้อ
-    clean_answer = re.sub(r"\*+", "", answer)  # ลบ * ทั้งหมด
-    clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)  # แปลงลิงก์จาก Markdown เป็นแยกบรรทัด
+    # ===== ใส่อิโมจิในหัวข้อ =====
+    clean_answer = answer
+    clean_answer = re.sub(r"[^\S\r\n]*ชื่อเรื่อง[^\S\r\n]*:", "🎬 ชื่อเรื่อง:", clean_answer)
+    clean_answer = re.sub(r"[^\S\r\n]*แนว[^\S\r\n]*:", "🧭 แนว:", clean_answer)
+    clean_answer = re.sub(r"[^\S\r\n]*ปี[^\S\r\n]*:", "📅 ปี:", clean_answer)
+    clean_answer = re.sub(r"[^\S\r\n]*เหตุผล[^\S\r\n]*:", "❤️ เหตุผล:", clean_answer)
+    clean_answer = re.sub(r"[^\S\r\n]*ลิงก์[^\S\r\n]*:", "🔗 ลิงก์:", clean_answer)
 
-    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ
-    clean_answer = clean_answer.replace("ชื่อเรื่อง:", "🎬 ชื่อเรื่อง:")
-    clean_answer = clean_answer.replace("แนว:", "🧭 แนว:")
-    clean_answer = clean_answer.replace("ปี:", "📅 ปี:")
-    clean_answer = clean_answer.replace("เหตุผล:", "❤️ เหตุผล:")
-    clean_answer = clean_answer.replace("ลิงก์:", "🔗 ลิงก์:")
+    # ===== ใส่มุกจีบท้ายข้อความ =====
+    flirt_lines = [
+        "ป.ล. ถ้าฟังจบแล้วยังไม่ฟิน… งั้นให้เราเป็นคนดูอนิเมะกับเธอแทนได้นะ~ 💞",
+        "ดูอนิเมะด้วยกันมั้ย เราจะไม่ปล่อยให้เธอดูคนเดียวแน่นอน~ 🎧💓",
+        "เพลงนี้เพราะมาก... แต่ถ้ามีเธอฟังด้วย มันจะพิเศษขึ้นอีกล้านเท่าเลย~ 🥰"
+    ]
+    chosen_flirt = random.choice(flirt_lines)
 
-    # ส่งกลับไปยัง LINE
-    response_message = f"{clean_answer}"
-    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
+    # ===== รวมข้อความทั้งหมด =====
+    response_message = f"{clean_answer}\n\n{chosen_flirt}"
+
+    # ===== ส่งกลับไปยัง LINE =====
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=response_message)
+    )
 
 # Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
