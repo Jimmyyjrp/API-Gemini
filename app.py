@@ -57,38 +57,6 @@ def generate_answer(user_message):
     return response.text
 
 
-def create_anime_card(title, image_url, watch_url):
-    bubble = BubbleContainer(
-        hero=ImageComponent(
-            url=image_url,
-            size="full",
-            aspectRatio="20:13",
-            aspectMode="cover",
-            action=URIAction(uri=watch_url, label="ดูเลย")
-        ),
-        body=BoxComponent(
-            layout="vertical",
-            contents=[
-                TextComponent(text=title, weight="bold", size="lg", wrap=True),
-                TextComponent(text="กดที่รูปเพื่อดูอนิเมะได้เลย", size="sm", color="#aaaaaa", wrap=True),
-            ]
-        ),
-        footer=BoxComponent(
-            layout="vertical",
-            spacing="sm",
-            contents=[
-                ButtonComponent(
-                    style="link",
-                    height="sm",
-                    action=URIAction(label="ดูบนเว็บ", uri=watch_url)
-                )
-            ],
-            flex=0
-        )
-    )
-    return FlexSendMessage(alt_text="แนะนำอนิเมะ", contents=bubble)
-
-
 # ฟังก์ชันจัดการข้อความที่ได้รับจากผู้ใช้
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
