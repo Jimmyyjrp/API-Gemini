@@ -1,9 +1,9 @@
 from google import genai
 from linebot import LineBotApi, WebhookHandler
-from linebot.models import TextSendMessage, MessageEvent, TextMessage, FlexSendMessage, BubbleContainer, ImageComponent, BoxComponent, TextComponent, URIAction
+from linebot.models import TextSendMessage, MessageEvent, TextMessage
 from flask import Flask, request, abort
+from linebot.models import FlexSendMessage, BubbleContainer, ImageComponent, BoxComponent, TextComponent, URIAction
 import re
-import json
 
 
 # LINE API Access Token และ Channel Secret
@@ -11,7 +11,7 @@ CHANNEL_ACCESS_TOKEN = 'rLoSpWjE4tJlrvLQXZN1ki7c9oWmvjJ+jNrtEnp7h80oh4D3GauvvdIO
 CHANNEL_SECRET = 'fff648004304c3a6bcde6c056eecd810'
 
 # สร้าง client สำหรับเชื่อมต่อกับ Gemini API
-client = genai.Client(api_key="YOUR_GEMINI_API_KEY")
+client = genai.Client(api_key="AIzaSyCMra2j44ztGyuTP8MzkJirs1TFtzuHpmo")
 
 # สร้าง LineBotApi และ WebhookHandler
 line_bot_api = LineBotApi(CHANNEL_ACCESS_TOKEN)
@@ -21,8 +21,7 @@ handler = WebhookHandler(CHANNEL_SECRET)
 app = Flask(__name__)
 
 # ฟังก์ชันหลักในการใช้ Gemini API
-
-def generate_song_json(user_message):
+def generate_answer(user_message):
     prompt = f"""
 คุณคือผู้เชี่ยวชาญ เพื่อนสนิทที่รักการดูอนิเมะและฟังเพลงอนิเมะมาก ๆ  
 คุณพูดจาเป็นกันเอง น่ารัก และให้คำแนะนำเหมือนคุยกับเพื่อน ไม่เป็นทางการจนเกินไป  
@@ -50,80 +49,60 @@ def generate_song_json(user_message):
         model="gemini-2.0-flash",
         contents=[prompt]
     )
-    try:
-        return json.loads(response.text.strip().replace("\"""", ''))
-    except:
-        return None
+    return response.text
 
-# สร้าง Flex Message แบบโปสเตอร์เพลง
-
-def create_song_flex(song_data):
-    bubble = BubbleContainer(
-        hero=ImageComponent(
-            url=song_data["image_url"],
-            size="full",
-            aspect_ratio="20:13",
-            aspect_mode="cover",
-            action=URIAction(uri=song_data["youtube_url"], label="เปิดเพลง")
-        ),
-        body=BoxComponent(
-            layout="vertical",
-            contents=[
-                TextComponent(text=song_data["title"], weight="bold", size="lg"),
-                TextComponent(text=f"ศิลปิน: {song_data['artist']}", size="sm"),
-                TextComponent(text=f"จาก: {song_data['anime']}", size="sm"),
-                TextComponent(text=f"🎧 อารมณ์: {song_data['mood']}", size="sm"),
-                TextComponent(text=f"❤️ {song_data['reason']}", wrap=True, size="sm"),
-            ]
-        ),
-        footer=BoxComponent(
-            layout="vertical",
-            contents=[
-                TextComponent(
-                    text="▶ ไปฟังเพลง", color="#1DB446", size="sm",
-                    action=URIAction(uri=song_data["youtube_url"], label="ฟังเพลง")
-                )
-            ]
-        )
-    )
-    return FlexSendMessage(alt_text=song_data["title"], contents=bubble)
-
-# คำแนวจีบ
-flirting_keywords = [
-    "มีแฟนยัง", "คุณมีแฟนยัง", "จีบได้ไหม", "จีบได้มั้ย", "โสดไหม", "แฟนยัง",
-    "ตกหลุมรัก", "คุณน่ารัก", "ชอบคุณ", "ชอบบอท", "บอทน่ารัก", "จีบบอท"
-]
 
 # ฟังก์ชันจัดการข้อความที่ได้รับจากผู้ใช้
+import re
+
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_message = event.message.text
     user_id = event.source.user_id
+
     print(f"Received message: {user_message} from {user_id}")
 
+    # คำแนวจีบ
+    flirting_keywords = [
+        "มีแฟนยัง", "คุณมีแฟนยัง", "จีบได้ไหม", "จีบได้มั้ย", "โสดไหม", "แฟนยัง", 
+        "ตกหลุมรัก", "คุณน่ารัก", "ชอบคุณ", "ชอบบอท", "บอทน่ารัก", "จีบบอท"
+    ]
+
     if any(keyword in user_message.lower() for keyword in flirting_keywords):
-        cute_reply = "มีแล้วน่ะ ชื่อเรโอะ จีบไม่ได้ แต่ถ้าเป็นเรื่องที่เกี่ยวกับการ์ตูนหรืออนิเมะ สามารถถามได้ตลอดเลยครับผม"
+        cute_reply = "เอ๋~ ถามแบบนี้เขินนะคะ 🤭💘\nบอทยังไม่มีแฟน แต่มีเรื่องอนิเมะดี ๆ มาเล่าให้ทุกวันเลยน้า~ 🍿✨"
         line_bot_api.reply_message(event.reply_token, TextSendMessage(text=cute_reply))
         return
 
-    song_data = generate_song_json(user_message)
+    # ส่งข้อความไปหา Gemini API
+    answer = generate_answer(user_message)
 
-    if song_data:
-        flex_msg = create_song_flex(song_data)
-        line_bot_api.reply_message(event.reply_token, flex_msg)
-    else:
-        line_bot_api.reply_message(event.reply_token, TextSendMessage(text="แงง ขอโทษนะ เราหาข้อมูลเพลงไม่ได้เลย 😢 ลองถามใหม่น้า~"))
+    # ลบเครื่องหมาย Markdown และใส่อีโมจิแทนหัวข้อ
+    clean_answer = re.sub(r"\*+", "", answer)  # ลบ * ทั้งหมด
+    clean_answer = re.sub(r"\[(.*?)\]\((.*?)\)", r"\1\n\2", clean_answer)  # แปลงลิงก์จาก Markdown เป็นแยกบรรทัด
 
-# Webhook URL
+    # แทนหัวข้อด้วยอีโมจิน่ารัก ๆ
+    clean_answer = clean_answer.replace("ชื่อเรื่อง:", "🎬 ชื่อเรื่อง:")
+    clean_answer = clean_answer.replace("แนว:", "🧭 แนว:")
+    clean_answer = clean_answer.replace("ปี:", "📅 ปี:")
+    clean_answer = clean_answer.replace("เหตุผล:", "❤️ เหตุผล:")
+    clean_answer = clean_answer.replace("ลิงก์:", "🔗 ลิงก์:")
+
+    # ส่งกลับไปยัง LINE
+    response_message = f"{clean_answer}"
+    line_bot_api.reply_message(event.reply_token, TextSendMessage(text=response_message))
+
+# Webhook URL สำหรับรับข้อความจาก LINE
 @app.route("/callback", methods=['POST'])
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
+
     try:
         handler.handle(body, signature)
     except Exception as e:
         print("Error:", e)
         abort(400)
+
     return 'OK'
 
 if __name__ == "__main__":
